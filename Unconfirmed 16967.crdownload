@@ -1,0 +1,100 @@
+import streamlit as st
+import numpy as np
+import joblib
+
+# ✅ Streamlit UI Setup
+st.set_page_config(page_title="Multi-Disease Prediction", layout="wide")
+st.title("AI-Powered Medical Disease Prediction")
+
+# ✅ Load Models & Scalers
+@st.cache_resource
+def load_models():
+    models = {
+        "Heart Disease": joblib.load("/Users/atharvvidyadharthorat/Desktop/final/mlmodel/Heart_voting_ensemble.sav"),
+        "Diabetes": joblib.load("/Users/atharvvidyadharthorat/Desktop/final/mlmodel/Diabitiesvoting_ensemble.sav"),
+       
+    }
+    scalers = {
+        "Heart Disease": joblib.load("/Users/atharvvidyadharthorat/Desktop/final/mlmodel/Heart_scaler.sav"),
+        "Diabetes": joblib.load("/Users/atharvvidyadharthorat/Desktop/final/mlmodel/Dibetes_scalar.sav"),
+    
+    }
+    return models, scalers
+
+models, scalers = load_models()
+
+# ✅ Disease Selection
+disease = st.selectbox("Select a Disease to Predict:", ["Heart Disease", "Diabetes",])
+
+# ✅ Input Fields Based on Disease Selection
+if disease == "Heart Disease":
+    st.subheader("Enter Patient Details for Heart Disease Prediction:")
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        age = st.number_input("Age", min_value=1, max_value=120, value=50)
+        trestbps = st.number_input("Resting Blood Pressure", min_value=80, max_value=200, value=120)
+        restecg = st.number_input("Resting ECG Results", min_value=0, max_value=2, value=1)
+        oldpeak = st.number_input("ST Depression", min_value=0.0, max_value=6.0, value=1.0)
+        ca = st.number_input("Major Vessels (0-4)", min_value=0, max_value=4, value=1)
+
+    with col2:
+        sex = st.radio("Sex", [0, 1], format_func=lambda x: "Female" if x == 0 else "Male")
+        chol = st.number_input("Serum Cholesterol (mg/dl)", min_value=100, max_value=600, value=200)
+        thalach = st.number_input("Max Heart Rate", min_value=60, max_value=220, value=140)
+        slope = st.number_input("Slope of Peak Exercise ST", min_value=0, max_value=2, value=1)
+        thal = st.number_input("Thal (0: Normal, 1: Fixed defect, 2: Reversible defect)", min_value=0, max_value=2, value=1)
+
+    with col3:
+        cp = st.number_input("Chest Pain Type", min_value=0, max_value=3, value=1)
+        fbs = st.radio("Fasting Blood Sugar > 120 mg/dl?", [0, 1], format_func=lambda x: "No" if x == 0 else "Yes")
+        exang = st.radio("Exercise Induced Angina?", [0, 1], format_func=lambda x: "No" if x == 0 else "Yes")
+
+    user_input = np.array([age, sex, cp, trestbps, chol, fbs, restecg, thalach, exang, oldpeak, slope, ca, thal]).reshape(1, -1)
+
+elif disease == "Diabetes":
+    st.subheader("Enter Patient Details for Diabetes Prediction:")
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        pregnancies = st.number_input("Number of Pregnancies", min_value=0, max_value=20, value=2)
+        glucose = st.number_input("Glucose Level", min_value=50, max_value=300, value=120)
+        blood_pressure = st.number_input("Blood Pressure", min_value=50, max_value=180, value=80)
+        skin_thickness = st.number_input("Skin Thickness", min_value=0, max_value=100, value=20)
+
+    with col2:
+        insulin = st.number_input("Insulin Level", min_value=0, max_value=900, value=80)
+        bmi = st.number_input("BMI", min_value=10.0, max_value=60.0, value=25.0)
+        dpf = st.number_input("Diabetes Pedigree Function", min_value=0.0, max_value=3.0, value=0.5)
+        age = st.number_input("Age", min_value=1, max_value=120, value=40)
+
+    user_input = np.array([pregnancies, glucose, blood_pressure, skin_thickness, insulin, bmi, dpf, age]).reshape(1, -1)
+
+
+    
+
+
+# ✅ Make Prediction
+if st.button("Predict"):
+    scaler = scalers[disease]
+    model = models[disease]
+
+    scaled_input = scaler.transform(user_input)
+    prediction = model.predict(scaled_input)[0]
+    probability = model.predict_proba(scaled_input)[0][1] * 100
+
+    if probability < 40:
+        risk_level = "✅ Not Risky"
+        recommendation = "Maintain a healthy diet and regular exercise."
+    elif 40 <= probability < 70:
+        risk_level = "⚠️ Moderate Risk"
+        recommendation = "Monitor your health and consult a doctor."
+    else:
+        risk_level = "🚨 High Risk"
+        recommendation = "Seek immediate medical attention."
+
+    st.subheader("Prediction Result:")
+    st.write(f"🩺 **Disease Status:** {'Diseased' if prediction == 1 else 'Not Diseased'}")
+    st.write(f"📊 **Probability of Disease:** {probability:.2f}%")
+    st.write(f"🚦 **Risk Level:** {risk_level}")
+    st.write(f"💡 **Recommendation:** {recommendation}")
